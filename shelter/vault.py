@@ -1,12 +1,7 @@
 import json
-from pathlib import Path
 from shelter.crypto import encrypt, decrypt
 from shelter.models import ShelterEntry
-
-HIDDEN_DIR_NAME = ".shelter"
-SHELTER_FILENAME = "shelter.dontfwithme"
-
-SHELTER_FILE_PATH  = Path.home() / HIDDEN_DIR_NAME /  SHELTER_FILENAME
+from shelter.constants import SHELTER_FILE_PATH
 
 def _load_raw(password:str) -> dict:
     if not SHELTER_FILE_PATH.exists():
@@ -57,3 +52,26 @@ def list_entries(password:str) -> list[ShelterEntry]:
         _entry(name, e)
         for name, e in data.items()
     ]
+
+
+def remove_entry(name:str, passwd:str):
+    data = _load_raw(passwd)
+
+    if name not in data:
+        print(f"Error: '{name}' not found")
+        return
+
+    data.pop(name)
+    _save_raw(data, passwd)
+
+def update_entry(name:str, secret:str, passwd:str):
+    data = _load_raw(passwd)
+    if name not in data:
+        print(f"Error: '{name}' not found")
+        return
+    data[name]["value"] = secret
+    _save_raw(data, passwd)
+
+def change_password(old_password:str, new_password:str):
+    data = _load_raw(old_password)
+    _save_raw(data, new_password)

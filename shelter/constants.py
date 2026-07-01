@@ -1,0 +1,10 @@
+from pathlib import Path
+
+HIDDEN_DIR_NAME = ".shelter"
+SHELTER_FILENAME = "shelter.dontfwithme"
+CONFIG_FILENAME = "config.toml"
+
+SHELTER_DIR = Path.home() / HIDDEN_DIR_NAME
+
+SHELTER_FILE_PATH = SHELTER_DIR / SHELTER_FILENAME
+CONFIG_FILE = SHELTER_DIR / CONFIG_FILENAME

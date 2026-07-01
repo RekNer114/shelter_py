@@ -8,6 +8,7 @@ NONCE_SIZE=12
 KEY_SIZE=32
 KDF_ITERATIONS = 600_000
 
+
 def derive_key(password: str, salt: bytes) -> bytes:
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
