@@ -1,7 +1,10 @@
 import argparse
 import getpass
 import base64
+import os
 from argparse import Namespace
+from concurrent.interpreters import list_all
+import subprocess # what's that?
 
 from shelter.constants import CONFIG_FILE
 from shelter.vault import add_entry, get_entry, list_entries, change_password, remove_entry, update_entry
@@ -113,7 +116,30 @@ def process_update(args, password):
         print(f"Entry {args.name} was update successfully")
     else:
         print("Error: provide --secret or --file")
-    return
+
+
+def process_run(args, password):
+    entries = list_entries(password)
+
+    if not entries:
+        print("Vault is empty")
+        return
+
+    env = os.environ.copy()
+
+    for entry in entries:
+        if entry.type == "text":
+            env[entry.name.upper()] = entry.value
+
+    cmd = args.cmd
+    if cmd and cmd[0] == "--":
+        cmd = cmd[1:]
+
+    if not cmd:
+        print("Error: no command provided. Usage: shelter run -- python app.py")
+        return
+
+    subprocess.run(cmd, env=env)
 
 def main():
     
@@ -140,5 +166,7 @@ def main():
         case "update":
             """updating only a secret and nothing else. Creation date will be the same"""
             process_update(args, password)
+        case "run":
+            process_run(args, password)
         case _:
             print("wrong command")

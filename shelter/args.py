@@ -45,4 +45,6 @@ def parse_args() -> argparse.Namespace:
     update_parser.add_argument("name", help="Secrets name")
     update_parser.add_argument("--secret", required=True, help="The secret value")
 
+    run_parser = subparser.add_parser("run", help="Run command with secrets injected as env vars")
+    run_parser.add_argument("cmd", nargs=argparse.REMAINDER, help="Command to run, e.g. -- python app.py")
     return parser.parse_args()
