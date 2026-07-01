@@ -1,128 +1,105 @@
-import argparse
-import getpass
-import base64
 import os
-from argparse import Namespace
-from concurrent.interpreters import list_all
 import subprocess # what's that?
-
+import click
 from shelter.constants import CONFIG_FILE
 from shelter.vault import add_entry, get_entry, list_entries, change_password, remove_entry, update_entry
 from shelter.models import ShelterEntry
-from pathlib import Path
-import shelter.config as config
-from shelter.args import parse_args
+import shelter.config as cfg
 
 
-def process_add(args : argparse.Namespace, password:str):
-    if args.secret:
-        entry = ShelterEntry(name=args.name, value=args.secret, type="text")
-    else:
-        print("Error: provide --secret or --file")
-        return
-    
+def _ask_password():
+    return click.prompt("Master password", hide_input=True)
+
+@click.group
+def cli():
+    pass
+
+# add
+@cli.command()
+@click.argument("name")
+@click.option("--secret", required=True, help="Secret value")
+def add(name, secret):
+    password = _ask_password()
+    entry = ShelterEntry(name=name, value=secret, type="text")
     add_entry(entry, password)
-    print(f"Stored: {args.name}")
 
-
-def process_get(args : argparse.Namespace, password:str):
-    entry = get_entry(args.name, password)
+#get
+@cli.command()
+@click.argument("name")
+def get(name):
+    password = _ask_password()
+    entry = get_entry(name, password)
     if entry is None:
-        print(f"Not found: {args.name}")
+        click.echo(f"Not found an {name}")
         return
-    if entry.type == "file":
-        out = Path(args.output) if args.output else Path(entry.filename)
-        out.write_bytes(base64.b64decode(entry.value))
-        print(f"Written to: {out}")
-    else:
-        print(entry.value)
-
-def process_list( password:str):
-    entries = list_entries(password)
-    if not entries:
-        print("Vault is empty")
-        return
-    for e in entries:
-        tag = f"[{e.type}]"
-        print(f"{tag:8} {e.name:20} {e.created_at}")
+    click.echo(entry.value)
 
 
-def process_config(args : argparse.Namespace):
-    match args.config_command:
-        case "list":
-            settings = config.load_config()
-            print("[defaults]")
-            for key, value in settings.items():
-                print(f" {key} : {value}")
-        case "get":
-            value = config.get_setting(args.key)
-
-            if value is None:
-                print(f"There's no such option {value}")
-            else:
-                print(f"{args.key} = {value}")
-        case "set":
-            try:
-                config.set_setting(args.key, args.value)
-            except ValueError as e:
-                print(f"Error: {e}")
-        case "path":
-            print(CONFIG_FILE)
-        case "reset":
-            confirmation = input("Reset all settings to defaults? [y/n] ")
-
-            if confirmation.lower() == "y":
-                config.reset_config()
-                print("Config reset")
-            else:
-                print("Canceled config reseting")
-
-
-def process_passwd(old : str):
-    new = getpass.getpass("New password: ")
-    new_confirm = getpass.getpass("Confirm new password: ")
-
-    if new != new_confirm:
-        print("Error: pawsswords doesn't match")
-        return
-
-    try:
-        change_password(old, new)
-        print("Password changed")
-    except Exception:
-        print("Error: invalid password")
-
-
-def process_remove(args:argparse.Namespace, password : str):
-    remove_conf = input("Are you sure you want to remove the password? [y/n] ")
-
-    if remove_conf.lower() != 'y':
-        print("removing canceled")
-        return
-
-    remove_entry(args.name, password)
-    print(f"Secret {args.name} was removed.")
-
-
-def process_update(args, password):
-    update_conf = input("Are you sure you want to update the password? [y/n] ")
-
-    if update_conf.lower() != 'y':
-        print("updating canceled")
-        return
-
-    if args.secret:
-        update_entry(args.name, args.secret, password)
-        print(f"Entry {args.name} was update successfully")
-    else:
-        print("Error: provide --secret or --file")
-
-
-def process_run(args, password):
+@cli.command("list")
+def list_cmd():
+    password = _ask_password()
     entries = list_entries(password)
 
     if not entries:
-        print("Vault is empty")
+        #todo add name if not empty
+        click.echo("Shelter is empty")
+        return
+
+    for entry in entries:
+        tag = f"[{entry.type}]"
+        click.echo(f"{tag[:8]} {entry.name} {entry.created_at}")
+
+@cli.command()
+@click.argument("name")
+def remove(name):
+    password = _ask_password()
+    confirmation = click.confirm(f"Are ypu sure you want to remove {name}?")
+    if not confirmation:
+        click.echo("Cancelled")
+        return
+
+    remove_entry(name, password)
+    click.echo(f"Removed {name}")
+
+@cli.command()
+@click.argument("name")
+@click.option("--secret", required=False, help="New secret value")
+@click.option("--new-name", required=False, help="New secret name")
+def update(name, secret, new_name):
+    if not secret and not new_name:
+        click.echo("Error: provide --secret or --new-name")
+        return
+
+    password = _ask_password()
+    confirmation = click.confirm(f"Are ypu sure you want to change {name}?")
+
+    if not confirmation:
+        click.echo("Cancelled")
+        return
+
+    update_entry(name, password, secret , new_name)
+    click.echo(f"Update: {name}")
+
+@cli.command()
+def passwd():
+    old = click.prompt("Current password", hide_input=True)
+    new = click.prompt("New password", hide_input=True)
+    confirm = click.prompt("Confirm new password", hide_input=True)
+
+    if new != confirm:
+        click.echo("Error: passwords do not match")
+        return
+
+    change_password(old, new)
+    click.echo("Password changed")
+
+@cli.command()
+@click.argument("cmd", nargs=-1)
+def run(cmd):
+    password = _ask_password()
+    entries = list_entries(password)
+    if not entries:
+        click.echo("Vault is empty")
         return
 
     env = os.environ.copy()
@@ -131,7 +108,7 @@ def process_run(args, password):
         if entry.type == "text":
             env[entry.name.upper()] = entry.value
 
-    cmd = args.cmd
+    cmd = list(cmd)
     if cmd and cmd[0] == "--":
         cmd = cmd[1:]
 
@@ -141,32 +118,53 @@ def process_run(args, password):
 
     subprocess.run(cmd, env=env)
 
+
+@cli.group()
+def config():
+    """Config commands group"""
+    pass
+
+@config.command("list")
+def config_list():
+    settings = cfg.load_config()
+    click.echo("[defaults]")
+    for key, value in settings.items():
+        print(f" {key} : {value}")
+
+@config.command("get")
+@click.argument("key")
+def config_get(key):
+    value = cfg.get_setting(key)
+
+    if value is None:
+        click.echo(f"There's no such option {value}")
+    else:
+        click.echo(f"{key} = {value}")
+
+@config.command("set")
+@click.argument("key")
+@click.argument("value")
+def config_set(key, value):
+    try:
+        cfg.set_setting(key, value)
+        click.echo(f"{key} = {value}")
+    except ValueError as e:
+        click.echo(f"Error: {e}")
+
+@config.command("path")
+def config_path():
+    click.echo(CONFIG_FILE)
+
+@config.command("reset")
+def config_reset():
+    confirmation = click.confirm("Reset all settings to defaults?")
+
+    if confirmation:
+        cfg.reset_config()
+        click.echo("Config reset")
+    else:
+        click.echo("Canceled config resting")
+
+
 def main():
-    
-    args = parse_args()
-
-    if args.command == "config":
-        process_config(args)
-        return
-
-    #to hide what currently typed
-    password = getpass.getpass("Master password: ")
-
-    match args.command:
-        case "add":
-            process_add(args, password)
-        case "get":
-            process_get(args, password)
-        case "list":
-            process_list(password)
-        case "passwd":
-            process_passwd(password)
-        case "remove":
-            process_remove(args, password)
-        case "update":
-            """updating only a secret and nothing else. Creation date will be the same"""
-            process_update(args, password)
-        case "run":
-            process_run(args, password)
-        case _:
-            print("wrong command")
+    cli()

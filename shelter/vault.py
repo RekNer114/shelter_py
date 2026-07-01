@@ -64,12 +64,18 @@ def remove_entry(name:str, passwd:str):
     data.pop(name)
     _save_raw(data, passwd)
 
-def update_entry(name:str, secret:str, passwd:str):
+def update_entry(name:str, passwd:str, secret:str = None,  new_name:str=None):
     data = _load_raw(passwd)
     if name not in data:
         print(f"Error: '{name}' not found")
         return
-    data[name]["value"] = secret
+
+    if secret is not None:
+        data[name]["value"] = secret
+
+    if new_name is not None:
+        data[new_name] = data.pop(name) #renaming key
+
     _save_raw(data, passwd)
 
 def change_password(old_password:str, new_password:str):
