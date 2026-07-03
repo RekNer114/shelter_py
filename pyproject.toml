@@ -1,0 +1,20 @@
+[project]
+name = "shelter-py"
+version = "0.1.1"
+requires-python = ">=3.12"
+description= "Secret vault CLI tool"
+dependencies = [
+    "click",
+    "cryptography>=49.0.0",
+    "tomlkit>=0.15.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/shelter"]
+
+[project.scripts]
+shelter = "shelter.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

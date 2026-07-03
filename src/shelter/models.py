@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-
+це
 @dataclass
 class ShelterEntry:
     name : str

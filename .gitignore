@@ -1,0 +1,32 @@
+# virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# build output
+dist/
+build/
+*.egg-info/
+*.whl
+*.tar.gz
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.cache/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
+
+
+# logs
+*.log
