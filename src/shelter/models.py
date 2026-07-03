@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-це
+
 @dataclass
 class ShelterEntry:
     name : str
@@ -8,3 +8,9 @@ class ShelterEntry:
     type : str
     filename: str | None=None
     created_at : str = field(default_factory=lambda: datetime.now().isoformat())
+
+@dataclass
+class Shelter:
+    name: str
+    shelterEntries: list[ShelterEntry] = field(default_factory=list)
+
